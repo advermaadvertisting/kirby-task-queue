@@ -1,0 +1,11 @@
+{
+    "name": "advermaadvertisting/kirby-task-queue",
+    "description": "Kirby Task Queue",
+    "authors": [
+        {
+            "name": "Tobias Tom",
+            "email": "t.tom@succont.de"
+        }
+    ],
+    "require": {}
+}

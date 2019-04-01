@@ -20,7 +20,7 @@ For this the `adverma.taskQueue.secret` needs to be set.
 The CURL request that triggeres the queue needs to include the same value
 inside the `API-Key` HTTP header:
 
-````
+```
 curl -X "POST" "http://{url to the task queue endpoint}/task-queue" \
      -H 'API-Key: foo'
 ```

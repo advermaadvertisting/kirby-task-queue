@@ -131,7 +131,7 @@ class UrlHookJob implements Job {
     $result = new $class($this->url, [
       'method' => $this->method,
       'headers' => $headers,
-      'data'    => $this->body
+      'data' => json_decode($this->body)
     ]);
 
     if (!$isKirby3) {

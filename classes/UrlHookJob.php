@@ -90,7 +90,8 @@ class UrlHookJob implements Job {
   public static function jobForJsonData( string $url, array $data ) : self {
     $instance = new self( $url, 'POST', json_encode( $data, JSON_UNESCAPED_SLASHES ) );
     $instance->headers = array(
-      'Accept' => 'application/json'
+      'Accept' => 'application/json',
+      'Content-Type' => 'application/json'
     );
 
     return $instance;

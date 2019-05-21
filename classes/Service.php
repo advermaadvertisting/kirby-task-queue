@@ -79,9 +79,9 @@ class Service {
   /**
    * Execute all remaining tasks that are stored inside the storage engine.
    *
-   * This metod will execute all the tasks that are currently stored inside
+   * This method will execute all the tasks that are currently stored inside
    * the task queue. By default it will only run for a maximum of 60 seconds
-   * and return. Thi makes sure that the number of simultanious tasks
+   * and return. This makes sure that the number of simultaneous tasks
    * does not increase too much for longer running tasks.
    *
    * The lifetime does not specify a maximum execution time of a job. If this
@@ -90,9 +90,9 @@ class Service {
    * which new jobs would be assigned to this execution loop.
    *
    * @param integer $lifetime The number of seconds that this task should run.
-   * @return integer The number of jobs that have been executed.
+   * @return array The result from the executed tasks.
    */
-  public function executeNextTasks( int $runtime = 60 ) : int {
+  public function executeNextTasks( int $runtime = 60 ) : array {
     // if we have a runtime specified, we calculate the time until when this
     // loop should continue.
     $runUntil = null;
@@ -100,10 +100,11 @@ class Service {
       $runUntil = time() + (int) $runtime;
     }
 
-    $numberOfExecutedTasks = 0;
+    $result = array();
     while( $task = $this->nextTask() )  {
-      $this->executeTask( $task );
-      $numberOfExecutedTasks++;
+      $this->executeTask($task, $message);
+      $result[$task->identifier()] = $task;
+
 
       // if there should be no limit, just continue to execute all other tasks.
       // if we currently did not reach the timeout, we continue to execute tasks.
@@ -115,7 +116,7 @@ class Service {
       break;
     }
 
-    return $numberOfExecutedTasks;
+    return $result;
   }
 
   /**

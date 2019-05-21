@@ -19,9 +19,24 @@ return [
       return false;
     }
 
-    site()->taskQueue()->executeNextTasks();
+    $result = site()->taskQueue()->executeNextTasks();
 
-    $message = 'Success';
+    if (empty($result)) {
+      $message = 'Nothing to do.';
+    } else {
+      $message = 'Success: ' . "\n";
+      foreach($result as $task) {
+        $message .= sprintf(
+          "[%s] %s %s\n",
+          $task->identifier(),
+          $task->result() ? '[x]' : '[ ]',
+          $task->message()
+        );
+        if (kirby()->request()->get('debug')) {
+          $message .= "\t" . $task->jobClass() . ': ' . $task->payload();
+        }
+      }
+    }
     if (!$isKirby3) {
       echo $message;
       return true;

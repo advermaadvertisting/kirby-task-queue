@@ -129,7 +129,7 @@ class UrlHookJob implements Job {
 
     $isKirby3 = class_exists('Kirby\Http\Remote');
     $class = $isKirby3 ? 'Kirby\Http\Remote' : 'Remote';
-    $response = new $class($this->url .'/foo', [
+    $response = new $class($this->url, [
       'method' => $this->method,
       'headers' => $headers,
       'data' => $this->body

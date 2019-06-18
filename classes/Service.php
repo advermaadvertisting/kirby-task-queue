@@ -40,6 +40,15 @@ class Service {
   }
 
   /**
+   * Returns the storage for this instance.
+   *
+   * @return Storage The storage for this instance.
+   */
+  public function storage() : Storage {
+    return $this->storage;
+  }
+
+  /**
    * Return the next task that should get executed.
    *
    * @return Task|null The task that should get executed, or NULL if no task is available.

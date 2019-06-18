@@ -1,0 +1,18 @@
+<phpunit bootstrap="bootstrap.php">
+	<testsuites>
+		<testsuite name="Kirby Task Queue Test Suite">
+			<directory suffix="Test.php">phpunit</directory>
+		</testsuite>
+	</testsuites>
+
+	<filter>
+		<whitelist processUncoveredFilesFromWhitelist="true">
+			<directory suffix=".php">../classes/</directory>
+		</whitelist>
+	</filter>
+
+	<logging>
+		<log type="coverage-html" target="../build/coverage/"/>
+		<log type="junit" target="../build/coverage/junit.xml"/>
+	</logging>
+</phpunit>

@@ -145,4 +145,14 @@ class PdoStorage implements Storage {
       'identifier' => $task->identifier()
     ));
   }
+
+  /**
+   * Wipe all the tasks from a queue.
+   *
+   * @return boolean Returns TRUE if the wipe was successful, otherwise FALSE.
+   */
+  public function wipeQueue() : bool {
+    $statement = $this->pdo->prepare('DELETE FROM "tasks";');
+    return $statement->execute();
+  }
 }

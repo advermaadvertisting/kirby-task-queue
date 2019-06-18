@@ -150,4 +150,17 @@ class RedisStorage implements Storage {
     $this->redis->lRem('tasks', $task->identifier());
     return $this->redis->delete($this->keyForTask($task)) > 0;
   }
+
+  /**
+   * Wipe all the tasks from a queue.
+   *
+   * @return boolean Returns TRUE if the wipe was successful, otherwise FALSE.
+   */
+  public function wipeQueue() : bool {
+    while($task = $this->nextTask()) {
+      $this->deleteTask($task);
+    }
+
+    return true;
+  }
 }

@@ -7,5 +7,16 @@
             "email": "t.tom@succont.de"
         }
     ],
-    "require": {}
+    "require": {},
+    "require-dev": {
+        "phpunit/phpunit": "^8.2"
+    },
+    "scripts": {
+      "phpunit": "phpunit -c tests/phpunit.xml tests/"
+    },
+    "autoload": {
+      "psr-4": {
+        "Adverma\\TaskQueue\\": "classes"
+      }
+    }
 }

@@ -35,4 +35,11 @@ interface Storage {
    * @return boolean Returns TRUE if the task was deleted successfully, otherwise FALSE.
    */
   public function deleteTask( Task $task ) : bool;
+
+  /**
+   * Wipe all the tasks from a queue.
+   *
+   * @return boolean Returns TRUE if the wipe was successful, otherwise FALSE.
+   */
+  public function wipeQueue() : bool;
 }

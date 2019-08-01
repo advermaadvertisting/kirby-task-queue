@@ -33,9 +33,12 @@ class Service {
   /**
    * Create a new instance of the task queue service.
    *
+   * If no storage is provided, the tasks will be executed directly when they
+   * are added to the queue.
+   *
    * @param Storage $storage the storage engine to use with this service.
    */
-  public function __construct( Storage $storage ) {
+  public function __construct(Storage $storage = null) {
     $this->storage = $storage;
   }
 
@@ -44,7 +47,7 @@ class Service {
    *
    * @return Storage The storage for this instance.
    */
-  public function storage() : Storage {
+  public function storage() : ?Storage {
     return $this->storage;
   }
 
@@ -54,7 +57,7 @@ class Service {
    * @return Task|null The task that should get executed, or NULL if no task is available.
    */
   public function nextTask() : ? Task {
-    return $this->storage->nextTask();
+    return $this->storage ? $this->storage->nextTask() : null;
   }
 
   /**
@@ -64,13 +67,27 @@ class Service {
    * returned as task, which has a permanent reference inside the storage
    * engine.
    *
+   * If there is no storage configured, the task will be executed directly and
+   * the async feature of the queue is **not** used.
+   *
    * @param Job $job The job that should be added to the queue.
    * @return Task The task that was added to the queue.
    */
   public function queueJob( Job $job ) : Task {
-    // create a new task for the given job andf store it inside the engine.
+    // Create a new task for the given job.
     $task = Task::newTaskForJob( $job );
-    $this->storage->saveTask( $task );
+
+    // If we have a storage engine, we store it inside it and will let the queue
+    // work on it later.
+    if ($this->storage) {
+      $this->storage->saveTask( $task );
+    } else {
+      // Otherwise execute the task now.
+      $result = $this->executeTask($task);
+      if (!$result) {
+        throw new Exception('Task for job ' . get_class($job) . ' failed to execute: ' . $task->result());
+      }
+    }
 
     // return the new task instance, which contains the job instance.
     return $task;
@@ -83,8 +100,9 @@ class Service {
    * @return boolean Returns TRUE if the task was deleted successfully, otherwise FALSE.
    */
   public function deleteTask( Task $task ) : bool {
-    return $this->storage->deleteTask( $task );
+    return $this->storage ? $this->storage->deleteTask( $task ) : false;
   }
+
   /**
    * Execute all remaining tasks that are stored inside the storage engine.
    *
@@ -141,7 +159,9 @@ class Service {
   public function executeTask( Task $task, string &$status = null ) : bool {
     // mark the task as started and save it into the engine.
     $task->setStartedAt( new DateTime );
-    $this->storage->saveTask( $task );
+    if ($this->storage) {
+      $this->storage->saveTask( $task );
+    }
 
     // execute the job, store the result and mark it as completed.
     try {
@@ -154,8 +174,10 @@ class Service {
 
     $task->setCompletedAt( new DateTime );
 
-    // save the changes to the storage engine again.
-    $this->storage->saveTask( $task );
+    if ($this->storage) {
+      // save the changes to the storage engine again.
+      $this->storage->saveTask( $task );
+    }
 
     // and return the original result we got from the job.
     return $task->result();

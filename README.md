@@ -9,6 +9,7 @@ configured. Two options are available:
 
 - `redis`: use a redis server as the storage engine
 - `pdo`: use any supported database that PDO supports as a storage engine.
+- ``: use an empty string to disable the tasks queue and execute the task directly.
 
 They can be configured by setting the `adverma.taskQueue.storage` value to
 one of the engines above.

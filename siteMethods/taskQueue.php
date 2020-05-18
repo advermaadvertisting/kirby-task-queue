@@ -14,7 +14,7 @@ return function() : Service {
 
     $storage = null;
     if ($storageType == 'pdo') {
-      $dsn = c::get('adverma.taskQueue.pdo.dsn');
+      $dsn = c::get('adverma.taskQueue.pdo.dsn') ?: 'pgsql:host=localhost;dbname=lowa';
       if ( empty( $dsn ) ) {
         throw new InvalidConfigurationException( 'No configuration value found for "adverma.taskQueue.pdo.dsn".' );
       }

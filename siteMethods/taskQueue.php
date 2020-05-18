@@ -25,7 +25,10 @@ return function() : Service {
       $driver = new Pdo($dsn, $username, $password);
       $driver->setAttribute(Pdo::ATTR_ERRMODE, Pdo::ERRMODE_EXCEPTION);
 
-      $storage = new $storageTypes[$storageType]( $driver );
+      $storage = new $storageTypes[$storageType](
+        $driver,
+        c::get('adverma.taskQueue.pdo.tableName')
+      );
     } elseif ($storageType == 'redis') {
       $host = c::get('adverma.taskQueue.redis.host', '127.0.0.1');
       $port = c::get('adverma.taskQueue.redis.port', '6379');

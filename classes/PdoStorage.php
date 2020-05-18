@@ -15,6 +15,13 @@ class PdoStorage implements Storage {
   protected $pdo;
 
   /**
+   * Stores the name of the database table to use with this storage engine.
+   *
+   * @var string
+   */
+  protected $tableName;
+
+  /**
    * Define if successful tasks should be removed from the database.
    *
    * @var bool
@@ -56,10 +63,16 @@ class PdoStorage implements Storage {
    * Create a new instance of the PDO storage engine.
    *
    * @param string $dsn The PDO instance to use with this engine.
+   * @param string $tableName The name of the table to use.
    * @param bool $deleteSuccessfulTasks Delete successful tasks from the database.
    */
-  public function __construct( Pdo $pdo = null, bool $deleteSuccessfulTasks = false ) {
+  public function __construct(
+    Pdo $pdo = null,
+    string $tableName = 'tasks',
+    bool $deleteSuccessfulTasks = false
+  ) {
     $this->pdo = $pdo;
+    $this->tableName = $tableName;
     $this->deleteSuccessfulTasks = $deleteSuccessfulTasks;
   }
 
@@ -69,7 +82,12 @@ class PdoStorage implements Storage {
    * @return Task|null The task that should get executed, or NULL if no task is available.
    */
   public function nextTask() : ?Task {
-    $statement = $this->pdo->query( 'SELECT * FROM "tasks" WHERE "startedAt" IS NULL ORDER BY "createdAt" LIMIT 1' );
+    $statement = $this->pdo->query( '
+      SELECT * FROM "' . $this->tableName . '"
+      WHERE "startedAt" IS NULL
+      ORDER BY "createdAt"
+      LIMIT 1
+    ' );
     $details = $statement->fetch(PDO::FETCH_ASSOC);
     if (empty($details)) {
       return null;
@@ -92,7 +110,7 @@ class PdoStorage implements Storage {
       return $this->deleteTask($task);
     }
 
-    $statement = $this->pdo->prepare('INSERT INTO "tasks" (
+    $statement = $this->pdo->prepare('INSERT INTO "' . $this->tableName . '" (
         "taskIdentifier",
         "jobClass",
         "payload",
@@ -140,7 +158,10 @@ class PdoStorage implements Storage {
    * @return boolean Returns TRUE if the task was deleted successfully, otherwise FALSE.
    */
   public function deleteTask( Task $task ) : bool {
-    $statement = $this->pdo->prepare('DELETE FROM "tasks" WHERE "taskIdentifier" = :identifier');
+    $statement = $this->pdo->prepare(
+      'DELETE FROM "' . $this->tableName . '"
+      WHERE "taskIdentifier" = :identifier
+    ');
     return $statement->execute(array(
       'identifier' => $task->identifier()
     ));
@@ -152,7 +173,7 @@ class PdoStorage implements Storage {
    * @return boolean Returns TRUE if the wipe was successful, otherwise FALSE.
    */
   public function wipeQueue() : bool {
-    $statement = $this->pdo->prepare('DELETE FROM "tasks";');
+    $statement = $this->pdo->prepare('DELETE FROM "' . $this->tableName .'";');
     return $statement->execute();
   }
 }

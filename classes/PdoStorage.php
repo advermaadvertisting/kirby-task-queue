@@ -68,11 +68,11 @@ class PdoStorage implements Storage {
    */
   public function __construct(
     Pdo $pdo = null,
-    string $tableName = 'tasks',
+    string $tableName = null,
     bool $deleteSuccessfulTasks = false
   ) {
     $this->pdo = $pdo;
-    $this->tableName = $tableName;
+    $this->tableName = $tableName ?: 'tasks';
     $this->deleteSuccessfulTasks = $deleteSuccessfulTasks;
   }
 

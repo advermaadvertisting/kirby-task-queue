@@ -66,7 +66,7 @@ class RedisStorage implements Storage {
       return null;
     }
 
-    $this->redis->delete($key);
+    $this->redis->del($key);
     return Task::taskFromArray(json_decode($taskDetails, true));
   }
 
@@ -82,9 +82,10 @@ class RedisStorage implements Storage {
   /**
    * Return the next task that should be executed.
    *
-   * @return Task|null The task that should get executed, or NULL if no task is available.
+   * @param DateTime $until The time until no new tasks should be returned.
+   * @param callable $callback The callback to handle the task.
    */
-  public function nextTask() : ?Task {
+  public function handleTasks(DateTime $until, callable $callback) : void {
     $task = null;
     do {
       $identifier = $this->redis->lPop('tasks');
@@ -99,10 +100,8 @@ class RedisStorage implements Storage {
         continue;
       }
 
-      break;
-    } while($identifier);
-
-    return $task;
+      $callback($task);
+    } while ($identifier);
   }
 
   /**
@@ -112,7 +111,7 @@ class RedisStorage implements Storage {
    * inside the engine before, it will update the previous record.
    *
    * @param Task $task The task that should get updated.
-   * @return boolean Returns TRUE if the update was successfull, otherwise FALSE.
+   * @return boolean Returns TRUE if the update was successful, otherwise FALSE.
    */
   public function saveTask( Task $task ) : bool {
     $key = $this->keyForTask($task);

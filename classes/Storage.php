@@ -6,6 +6,9 @@
 
 namespace Adverma\TaskQueue;
 
+use DateTime;
+use Generator;
+
 /**
  * Defines the common storage interface for different storage engines.
  */
@@ -13,9 +16,10 @@ interface Storage {
   /**
    * Return the next task that should be executed.
    *
-   * @return Task|null The task that should get executed, or NULL if no task is available.
+   * @param DateTime $until The time until no new tasks should be returned.
+   * @param callable $callback The callback to handle the task.
    */
-  public function nextTask() : ?Task;
+  public function handleTasks(DateTime $until, callable $callback) : void;
 
   /**
    * Save the given task inside the storage engine.

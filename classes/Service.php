@@ -143,7 +143,7 @@ class Service {
    */
   public function executeTask( Task $task, string &$message = null ) : bool {
     try {
-      $task->setResult( $task->job()->execute( $status ) );
+      $task->setResult( $task->job()->execute( $message ) );
       $task->setMessage( $message );
     } catch ( \Exception $exception) {
       $task->setResult( false );

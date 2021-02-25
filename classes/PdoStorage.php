@@ -76,24 +76,68 @@ class PdoStorage implements Storage {
     $this->deleteSuccessfulTasks = $deleteSuccessfulTasks;
   }
 
-  /**
-   * Return the next task that should be executed.
-   *
-   * @return Task|null The task that should get executed, or NULL if no task is available.
-   */
-  public function nextTask() : ?Task {
-    $statement = $this->pdo->query( '
-      SELECT * FROM "' . $this->tableName . '"
-      WHERE "startedAt" IS NULL
-      ORDER BY "createdAt"
-      LIMIT 1
-    ' );
+  protected function taskForIdentifier(string $identifier) : ?Task {
+    $statement = $this->pdo->prepare('
+      SELECT *
+      FROM "' . $this->tableName . '"
+      WHERE "taskIdentifier" = ?
+    ');
+
+    $statement->execute([$identifier]);
     $details = $statement->fetch(PDO::FETCH_ASSOC);
-    if (empty($details)) {
+    if (!$details) {
       return null;
     }
 
     return Task::taskFromArray($details);
+  }
+  /**
+   * Return the next task that should be executed.
+   *
+   * @param DateTime $until The time until no new tasks should be returned.
+   * @param callable $callback The callback to handle the task.
+   */
+  public function handleTasks(DateTime $until, callable $callback) : void {
+    do {
+      $statement = $this->pdo->query( '
+        UPDATE "' . $this->tableName . '" SET "startedAt" = NOW()
+        WHERE "taskIdentifier" = (
+          SELECT "taskIdentifier" FROM "' . $this->tableName . '"
+            WHERE "startedAt" IS NULL
+            ORDER BY "createdAt"
+            LIMIT 1
+        ) RETURNING "taskIdentifier";
+      ');
+      $identifier = $statement->fetchColumn();
+      if ($identifier) {
+        $callback($this->taskForIdentifier($identifier));
+        return;
+      }
+    } while ($identifier);
+
+    $timeout = $until->diff(new DateTime)->s * 1000;
+    $statement = $this->pdo->prepare('
+      UPDATE "' . $this->tableName . '" SET "startedAt" = NOW()
+      WHERE "taskIdentifier" = ?
+        AND "startedAt" IS NULL
+      RETURNING "taskIdentifier";
+    ');
+
+    $this->pdo->exec('LISTEN tasks_notify');
+    while ($result = $this->pdo->pgsqlGetNotify(PDO::FETCH_ASSOC, $timeout)) {
+      $statement->execute([$result['payload']]);
+      $identifier = $statement->fetchColumn();
+      if (!$identifier) {
+        continue;
+      }
+
+      $task = $this->taskForIdentifier($identifier);
+      if (!$task) {
+        continue;
+      }
+
+      $callback($task);
+    }
   }
 
   /**

@@ -77,3 +77,23 @@ seconds.
 **Please note** It is not a problem if multiple task queues run at once.
 Ending the task queue before another one starts (or slightly after) only makes
 sure that the server performance is not exhausted by multiple cron jobs.
+
+## Updates
+```sql
+CREATE OR REPLACE FUNCTION tasks_notify()
+	RETURNS trigger AS
+$$
+BEGIN
+	PERFORM pg_notify('tasks_notify', NEW."taskIdentifier");
+	RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS tasks_notify on tasks;
+CREATE TRIGGER tasks_notify
+	AFTER INSERT OR UPDATE
+	ON tasks
+	FOR EACH ROW
+  WHEN (NEW."startedAt" IS NULL AND NEW."completedAt" IS NULL)
+EXECUTE PROCEDURE tasks_notify();
+```

@@ -52,15 +52,6 @@ class Service {
   }
 
   /**
-   * Return the next task that should get executed.
-   *
-   * @return Task|null The task that should get executed, or NULL if no task is available.
-   */
-  public function nextTask() : ? Task {
-    return $this->storage ? $this->storage->nextTask() : null;
-  }
-
-  /**
    * Add a new job to the task queue.
    *
    * This method will add a plain job to the queue. The job will then be
@@ -119,31 +110,25 @@ class Service {
    * @param integer $lifetime The number of seconds that this task should run.
    * @return array The result from the executed tasks.
    */
-  public function executeNextTasks( int $runtime = 60 ) : array {
+  public function executeNextTasks( int $runtime = 60, callable $callback ) : array {
     // if we have a runtime specified, we calculate the time until when this
     // loop should continue.
-    $runUntil = null;
-    if ( $runtime ) {
-      $runUntil = time() + (int) $runtime;
-    }
-
-    $result = array();
-    while( $task = $this->nextTask() )  {
-      $this->executeTask($task, $message);
-      $result[$task->identifier()] = $task;
-
+    $until = new DateTime();
+    $until->modify('+' . $runtime . ' seconds');
 
       // if there should be no limit, just continue to execute all other tasks.
       // if we currently did not reach the timeout, we continue to execute tasks.
-      if ( !$runUntil || time() < $runUntil ) {
-        continue;
-      }
+    $tasks = [];
+    while (new DateTime < $until) {
+      $this->storage->handleTasks($until, function($task) use ($callback, &$tasks) {
+        $this->executeTask($task);
 
-      // timeout reached, stop the loop. Some other task has to finish the jobs.
-      break;
+        $tasks[] = $task;
+        $callback($task);
+      });
     }
 
-    return $result;
+    return $tasks;
   }
 
   /**
@@ -153,19 +138,12 @@ class Service {
    * The result will also be updated inside the storage engine.
    *
    * @param Task $task The task that should get executed.
-   * @param string $status The status that was reported by the job.
+   * @param string $message The status that was reported by the job.
    * @return boolean The result that was reported by the job.
    */
-  public function executeTask( Task $task, string &$status = null ) : bool {
-    // mark the task as started and save it into the engine.
-    $task->setStartedAt( new DateTime );
-    if ($this->storage) {
-      $this->storage->saveTask( $task );
-    }
-
-    // execute the job, store the result and mark it as completed.
+  public function executeTask( Task $task, string &$message = null ) : bool {
     try {
-      $task->setResult( $task->job()->execute( $message ) );
+      $task->setResult( $task->job()->execute( $status ) );
       $task->setMessage( $message );
     } catch ( \Exception $exception) {
       $task->setResult( false );

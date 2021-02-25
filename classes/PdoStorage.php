@@ -123,7 +123,7 @@ class PdoStorage implements Storage {
       RETURNING "taskIdentifier";
     ');
 
-    $this->pdo->exec('LISTEN tasks_notify');
+    $this->pdo->exec('LISTEN ' . $this->tableName . '_notify');
     while ($result = $this->pdo->pgsqlGetNotify(PDO::FETCH_ASSOC, $timeout)) {
       $statement->execute([$result['payload']]);
       $identifier = $statement->fetchColumn();

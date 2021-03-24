@@ -20,7 +20,9 @@ return [
     }
 
     $runtime = (int) c::get('adverma.taskQueue.runtime', 60);
-    $result = site()->taskQueue()->executeNextTasks($runtime);
+    $result = site()->taskQueue()->executeNextTasks($runtime, function($task) {
+      return true;
+    });
 
     if (empty($result)) {
       $message = 'Nothing to do.';

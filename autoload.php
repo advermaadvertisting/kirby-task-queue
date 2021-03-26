@@ -1,6 +1,7 @@
 <?php
 
 require_once __DIR__ . DS . 'classes' . DS . '/Job.php';
+require_once __DIR__ . DS . 'classes' . DS . '/PingJob.php';
 require_once __DIR__ . DS . 'classes' . DS . '/UrlHookJob.php';
 require_once __DIR__ . DS . 'classes' . DS . '/Storage.php';
 require_once __DIR__ . DS . 'classes' . DS . '/PdoStorage.php';

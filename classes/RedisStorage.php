@@ -6,19 +6,23 @@
 namespace Adverma\TaskQueue;
 
 use Redis;
+use RedisException;
 use DateTime;
-use c;
 
-/**
- * The redis storage engine for the task queue.
- */
 class RedisStorage implements Storage {
   /**
-   * Stores the redit instance of this storage engine.
+   * Stores the Redis instance of this storage engine.
    *
    * @var Redis
    */
   protected $redis;
+
+  /**
+   * Stores the task queue prefix inside redis.
+   *
+   * @var string
+   */
+  protected $prefix;
 
   /**
    * Convert a date time instance into a date string.
@@ -41,17 +45,7 @@ class RedisStorage implements Storage {
    * @return string The redis keys for the given task.
    */
   protected function keyForTask( Task $task ) : string {
-    return $this->keyForIdentifier($task->identifier());
-  }
-
-  /**
-   * Return the keys inside redis for the given task identifier.
-   *
-   * @param string $identifier The identifier for which the redis key should get returned.
-   * @return string The redis keys for the given identifier.
-   */
-  protected function keyForIdentifier( string $identifier ) : string {
-    return 'task_' . $identifier;
+    return $this->prefix . $task->createdAt()->getTimestamp() . '_' . $task->identifier();
   }
 
   /**
@@ -66,17 +60,35 @@ class RedisStorage implements Storage {
       return null;
     }
 
-    $this->redis->del($key);
     return Task::taskFromArray(json_decode($taskDetails, true));
+  }
+
+  /**
+   * Handle the task for the given key.
+   * 
+   * @param string $key The key to handle the task for.
+   * @param callable $callback  The callback to send the task to.
+   * @return void 
+   */
+  protected function handleTaskWithKey(string $key, callable $callback) : void {
+    $task = $this->taskForKey($key);
+    if (!$task || $task->startedAt() != null) {
+      return;
+    }
+
+    $task->setStartedAt(new DateTime());
+    $callback($task);
   }
 
   /**
    * Create a new instance of the redis storage engine.
    *
    * @param Redis $redis The redis instance to use.
+   * @param string $$prefix The task queue prefix inside redis.
    */
-  public function __construct( Redis $redis ) {
+  public function __construct( Redis $redis, string $prefix = 'task_' ) {
     $this->redis = $redis;
+    $this->prefix = $prefix;
   }
 
   /**
@@ -86,22 +98,31 @@ class RedisStorage implements Storage {
    * @param callable $callback The callback to handle the task.
    */
   public function handleTasks(DateTime $until, callable $callback) : void {
-    $task = null;
-    do {
-      $identifier = $this->redis->lPop('tasks');
-      // reached the last task for now, so we can end the loop early.
-      if (!$identifier) {
-        break;
-      }
+    $keys = $this->redis->keys($this->prefix . '*');
+    sort($keys);
+    while($keys) {
+      $this->handleTaskWithKey(array_shift($keys), $callback);
+    }
 
-      $key = $this->keyForIdentifier($identifier);
-      $task = $this->taskForKey($key);
-      if (!$task) {
-        continue;
-      }
+    /***
+    We should use the publish/subscribe feature of Redis here. Unfortunately
+    it does not work correctly with out $until handling, as `subscribe` will
+    block the script until it is ended.
+    At some point this function might be written to be asynchronous. Then we
+    should be able to sleep here $until and it should stream correctly.
 
-      $callback($task);
-    } while ($identifier);
+    try {
+      $this->redis->subscribe([$this->prefix], function ($redis, $channel, $message) use ($callback) {
+        $this->handleTaskWithKey($message, $callback);
+      });
+    } catch(RedisException $exception) {
+    }
+    **/
+
+    // This is our workaround for now. To not overload the server with too much
+    // loops over this function, we wait for two seconds to return from this
+    // loop.
+    sleep(2);
   }
 
   /**
@@ -111,10 +132,11 @@ class RedisStorage implements Storage {
    * inside the engine before, it will update the previous record.
    *
    * @param Task $task The task that should get updated.
-   * @return boolean Returns TRUE if the update was successful, otherwise FALSE.
+   * @return boolean Returns TRUE if the update was successfull, otherwise FALSE.
    */
   public function saveTask( Task $task ) : bool {
     $key = $this->keyForTask($task);
+    $isNew = !$this->redis->exists($key);
     if (!$this->redis->set($key, json_encode( array(
       'taskIdentifier' => $task->identifier(),
       'jobClass' => $task->jobClass(),
@@ -128,7 +150,7 @@ class RedisStorage implements Storage {
       return false;
     }
 
-    if ($task->startedAt()) {
+    if (!$isNew) {
       if ($task->completedAt() && $task->result()) {
         $this->redis->expire($key, 10);
       }
@@ -136,7 +158,7 @@ class RedisStorage implements Storage {
       return true;
     }
 
-    return $this->redis->rPush('tasks', $task->identifier());
+    return $this->redis->publish($this->prefix, $this->keyForTask($task));
   }
 
   /**
@@ -146,8 +168,9 @@ class RedisStorage implements Storage {
    * @return boolean Returns TRUE if the task was deleted successfully, otherwise FALSE.
    */
   public function deleteTask( Task $task ) : bool {
-    $this->redis->lRem('tasks', $task->identifier());
-    return $this->redis->delete($this->keyForTask($task)) > 0;
+    return $this->redis->delete(
+      $this->keyForTask($task)
+    );
   }
 
   /**
@@ -156,8 +179,10 @@ class RedisStorage implements Storage {
    * @return boolean Returns TRUE if the wipe was successful, otherwise FALSE.
    */
   public function wipeQueue() : bool {
-    while($task = $this->nextTask()) {
-      $this->deleteTask($task);
+    $keys = $this->redis->keys($this->prefix . '*');
+    sort($keys);
+    while($keys) {
+      $this->redis->delete(array_shift($keys));
     }
 
     return true;

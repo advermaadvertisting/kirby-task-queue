@@ -110,7 +110,7 @@ class Service {
    * @param integer $lifetime The number of seconds that this task should run.
    * @return array The result from the executed tasks.
    */
-  public function executeNextTasks( int $runtime = 60, callable $callback ) : array {
+  public function executeNextTasks( int $runtime, callable $callback ) : array {
     // if we have a runtime specified, we calculate the time until when this
     // loop should continue.
     $until = new DateTime();

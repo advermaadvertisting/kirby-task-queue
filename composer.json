@@ -1,6 +1,7 @@
 {
     "name": "advermaadvertisting/kirby-task-queue",
     "description": "Kirby Task Queue",
+    "version": "1.0.0",
     "authors": [
         {
             "name": "Tobias Tom",
